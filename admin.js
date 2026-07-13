@@ -60,7 +60,15 @@ const SCHEMA = [
   },
   {
     key: "news", label: "News & Announcements", desc: "Latest GAD news and announcements.",
-    node: arr([f("title", "Title"), f("date", "Date", "date"), f("excerpt", "Excerpt", "textarea"), f("body", "Full text", "textarea"), f("image", "Image", "image"), f("link", "External link", "url")], "News"),
+    node: arr([
+      f("title", "Title"),
+      f("date", "Date", "date"),
+      f("excerpt", "Excerpt (short summary shown on the card)", "textarea"),
+      f("body", "Full text (shown when the item is opened)", "textarea"),
+      f("image", "Cover image", "image"),
+      f("gallery", "Photo gallery (upload multiple images)", "images"),
+      f("link", "External link", "url"),
+    ], "News"),
   },
   {
     key: "agenda", label: "GAD Agenda", desc: "Strategic GAD agenda and priorities.",
@@ -308,13 +316,14 @@ function markDirty() {
 /* ---------- field renderers ---------- */
 function blankFromFields(fields) {
   const o = {};
-  for (const fl of fields) o[fl.key] = fl.kind === "list" ? [] : "";
+  for (const fl of fields) o[fl.key] = fl.kind === "list" || fl.kind === "images" ? [] : "";
   return o;
 }
 
 function renderField(fld, path) {
   const value = getPath(draft, path);
   if (fld.kind === "file" || fld.kind === "image") return renderFileField(fld, path, value);
+  if (fld.kind === "images") return renderImagesField(fld, path, value);
   if (fld.kind === "list") return renderListField(fld, path, value);
   if (fld.kind === "textarea") {
     const ta = el("textarea", { value: value || "" });
@@ -345,6 +354,101 @@ function renderListField(fld, path, value) {
     setPath(draft, path, lines);
   });
   return fieldWrap(fld.label, ta, true, "One item per line.");
+}
+
+/* multiple-images field: upload/reorder/remove a list of image URLs */
+function renderImagesField(fld, path, value) {
+  const wrap = el("div", { class: "field field-full" });
+  wrap.appendChild(el("label", {}, fld.label));
+  const grid = el("div", { class: "images-grid" });
+  wrap.appendChild(grid);
+
+  const getList = () =>
+    (getPath(draft, path) || []).map((v) => (typeof v === "string" ? v : (v && v.image) || "")).filter((v) => v !== undefined);
+  const setList = (list) => setPath(draft, path, list);
+
+  const rebuild = () => {
+    grid.innerHTML = "";
+    const list = getList();
+    if (!list.length) {
+      grid.appendChild(el("p", { class: "empty-note" }, "No photos yet. Upload one or more images below."));
+      return;
+    }
+    list.forEach((src, i) => {
+      const move = (dir) => {
+        const l = getList();
+        const ni = i + dir;
+        if (ni < 0 || ni >= l.length) return;
+        [l[i], l[ni]] = [l[ni], l[i]];
+        setList(l);
+        rebuild();
+      };
+      const remove = () => {
+        const l = getList();
+        l.splice(i, 1);
+        setList(l);
+        rebuild();
+      };
+      grid.appendChild(
+        el("div", { class: "image-thumb" }, [
+          src ? el("img", { src: encodeURI(src), alt: "" }) : el("span", { class: "thumb-fallback" }, "IMG"),
+          el("div", { class: "image-thumb-actions" }, [
+            el("button", { class: "icon-btn", type: "button", title: "Move left", onclick: () => move(-1) }, "\u2190"),
+            el("button", { class: "icon-btn", type: "button", title: "Move right", onclick: () => move(1) }, "\u2192"),
+            el("button", { class: "icon-btn danger", type: "button", title: "Remove", onclick: remove }, "\u2715"),
+          ]),
+        ])
+      );
+    });
+  };
+
+  const fileInput = el("input", { type: "file", accept: "image/*", multiple: "", hidden: "" });
+  const uploadBtn = el("button", { type: "button", class: "btn btn-ghost btn-sm", onclick: () => fileInput.click() }, "Upload photo(s)");
+  fileInput.addEventListener("change", async () => {
+    if (!fileInput.files.length) return;
+    const files = [...fileInput.files];
+    uploadBtn.textContent = "Uploading\u2026";
+    uploadBtn.disabled = true;
+    try {
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await api("/api/upload", { method: "POST", headers: authHeaders(), body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Upload failed.");
+        const l = getList();
+        l.push(data.path);
+        setList(l);
+      }
+      rebuild();
+      showToast(files.length > 1 ? "Photos uploaded" : "Photo uploaded", "success");
+    } catch (e) {
+      showToast(e.message, "error");
+    } finally {
+      uploadBtn.textContent = "Upload photo(s)";
+      uploadBtn.disabled = false;
+      fileInput.value = "";
+    }
+  });
+
+  const urlInput = el("input", { type: "text", placeholder: "or paste an image URL" });
+  const addUrlBtn = el("button", {
+    type: "button", class: "btn btn-ghost btn-sm",
+    onclick: () => {
+      const v = urlInput.value.trim();
+      if (!v) return;
+      const l = getList();
+      l.push(v);
+      setList(l);
+      urlInput.value = "";
+      rebuild();
+    },
+  }, "Add URL");
+
+  rebuild();
+  wrap.appendChild(el("div", { class: "images-toolbar" }, [uploadBtn, urlInput, addUrlBtn, fileInput]));
+  wrap.appendChild(el("span", { class: "field-hint" }, "These photos appear in the news gallery. Drag order with the arrows; the cover image above shows first."));
+  return wrap;
 }
 
 function renderFileField(fld, path, value) {
