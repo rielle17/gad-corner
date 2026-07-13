@@ -1,0 +1,337 @@
+{
+  "site": {
+    "republic": "Republic of the Philippines",
+    "agencyName": "Cavite State University",
+    "campus": "CCAT Campus",
+    "cornerName": "Gender and Development (GAD) Corner",
+    "tagline": "Advancing gender equality, women's empowerment, and safe spaces across the CvSU-CCAT community.",
+    "email": "safespaces.gadrc@cvsu.edu.ph",
+    "phone": "(046) 419-2013",
+    "address": "Rosario, Cavite, Philippines",
+    "digitalCornerUrl": "",
+    "kmsUrl": "",
+    "socials": [
+      {
+        "label": "Facebook",
+        "url": "https://www.facebook.com/"
+      },
+      {
+        "label": "CvSU Official Website",
+        "url": "https://cvsu.edu.ph/"
+      }
+    ]
+  },
+  "slides": [
+    {
+      "id": "slide-1",
+      "title": "18-Day Campaign to End Violence Against Women",
+      "caption": "CvSU-CCAT joins the annual Orange Wave, standing united to end violence against women and girls.",
+      "image": "/orange wave 2025.png",
+      "link": "#news"
+    },
+    {
+      "id": "slide-2",
+      "title": "IEC Materials Distribution 2025",
+      "caption": "Information, Education, and Communication drive raising GAD awareness among students and personnel.",
+      "image": "/2025 PHOTOS/Feb.6,2025 - IEC DISTRIBUTION.jpg",
+      "link": "#news"
+    },
+    {
+      "id": "slide-3",
+      "title": "GAD Webinar Highlights",
+      "caption": "Capacity-building webinars promoting gender-responsive learning and workplaces.",
+      "image": "/2025 PHOTOS/Copy of Copy of HIGHLIGHTS FO THE WEBINAR.png",
+      "link": "#news"
+    }
+  ],
+  "news": [
+    {
+      "id": "news-1",
+      "title": "GAD Kicks Off the 18-Day Campaign to End VAW",
+      "date": "2025-11-25",
+      "excerpt": "The GAD Focal Point System leads the Orange Wave campaign with advocacy activities across the campus.",
+      "body": "In observance of the National and International 18-Day Campaign to End Violence Against Women (VAW), the CvSU-CCAT GAD office spearheaded a series of advocacy activities. The Orange Wave campaign underscores the university's continuing commitment to protect the dignity, safety, and equality of every student and employee.",
+      "image": "/orange wave 2025.png",
+      "link": ""
+    },
+    {
+      "id": "news-2",
+      "title": "IEC Distribution Strengthens Safe Spaces Awareness",
+      "date": "2025-02-10",
+      "excerpt": "Students and personnel received Safe Spaces and anti-sexual harassment IEC materials.",
+      "body": "On February 6 and 10, 2025, the GAD office conducted an Information, Education, and Communication (IEC) materials distribution. The activity raised awareness on RA 11313 (Safe Spaces Act), RA 7877 (Anti-Sexual Harassment Act), and the CvSU CODI mechanism for reporting gender-based sexual harassment.",
+      "image": "/2025 PHOTOS/Feb.10,2025-IEC DISTRIBUTION.jpg",
+      "link": ""
+    },
+    {
+      "id": "news-3",
+      "title": "GAD Webinar Promotes Gender-Responsive Learning",
+      "date": "2025-03-18",
+      "excerpt": "Highlights from the GAD webinar on building inclusive and gender-fair spaces.",
+      "body": "The GAD Focal Point System organized a webinar focused on gender sensitivity, gender-fair language, and building inclusive learning and working environments. Participants gained practical tools for mainstreaming gender and development in their respective units.",
+      "image": "/2025 PHOTOS/Copy of Copy of HIGHLIGHTS FO THE WEBINAR.png",
+      "link": ""
+    },
+    {
+      "id": "news-4",
+      "title": "Women's Empowerment and Leadership Activities",
+      "date": "2025-03-08",
+      "excerpt": "Celebrating the contributions of women in the CvSU-CCAT community.",
+      "body": "As part of the National Women's Month Celebration, the GAD office recognized the invaluable roles and contributions of women within the university, the family, community, and society, in line with the Magna Carta of Women.",
+      "image": "/2025 PHOTOS/Copy of WELA PHOTOS1.png",
+      "link": ""
+    }
+  ],
+  "agenda": {
+    "title": "GAD Agenda",
+    "body": "The CvSU-CCAT GAD Agenda sets the strategic direction for gender mainstreaming, guided by the Magna Carta of Women (RA 9710), the Safe Spaces Act (RA 11313), and the Anti-Sexual Harassment Act (RA 7877). It focuses on protecting rights, promoting equal opportunity, and institutionalizing gender-responsive policies, programs, and services.",
+    "points": [
+      "Institutionalize gender mainstreaming in instruction, research, extension, and administration.",
+      "Protect students and personnel through Safe Spaces and anti-GBSH mechanisms.",
+      "Promote women's empowerment, leadership, and participation in decision-making.",
+      "Ensure gender-responsive planning and budgeting."
+    ]
+  },
+  "gpb": [
+    {
+      "id": "gpb-2025",
+      "title": "GAD Plan and Budget 2025",
+      "year": "2025",
+      "description": "Approved GAD Plan and Budget outlining programs, activities, projects, and funding for the year.",
+      "file": "/downloadable files/GAD PLAN AND BUDGET 2025.pdf"
+    }
+  ],
+  "accomplishments": [
+    {
+      "id": "ar-2025",
+      "title": "2025 GAD Accomplishment Report",
+      "year": "2025",
+      "description": "Full-year accomplishment report on GAD programs, activities, and projects.",
+      "image": "/accomplishment reports/2025/2025 accomplishment report.png",
+      "file": "/accomplishment reports/2025/2025 Accomplishment Report.pdf"
+    },
+    {
+      "id": "ar-2024-q1",
+      "title": "1st Quarter 2024 Accomplishment Report",
+      "year": "2024",
+      "description": "First quarter GAD accomplishment report for 2024.",
+      "image": "",
+      "file": "/accomplishment reports/2024/Copy of A.R. 2024 1ST QTR.pdf"
+    },
+    {
+      "id": "ar-2024-q1-final",
+      "title": "1st Quarter 2024 Accomplishment Report (Final)",
+      "year": "2024",
+      "description": "Finalized first quarter GAD accomplishment report for 2024.",
+      "image": "",
+      "file": "/accomplishment reports/2024/Copy of 1ST quarter ar GAD FINAL.pdf"
+    },
+    {
+      "id": "ar-2024-q2",
+      "title": "2nd Quarter 2024 Accomplishment Report",
+      "year": "2024",
+      "description": "Second quarter GAD accomplishment report for 2024.",
+      "image": "",
+      "file": "/accomplishment reports/2024/2nd QTR 2024 AR.pptx.pdf"
+    }
+  ],
+  "estadoNiJuana": {
+    "title": "Estado ni Juana Report",
+    "body": "The Estado ni Juana Report details the campus's achievements in gender mainstreaming and the impact of GAD Programs, Activities, and Projects (PAPs) on women and girls, with particular attention to the benefits for women and girls from underserved communities and marginalized sectors.",
+    "file": ""
+  },
+  "paps": [
+    {
+      "id": "pap-1",
+      "title": "Safe Spaces Orientation for OJT Students",
+      "category": "Advocacy",
+      "year": "2025",
+      "description": "Orientation guiding OJT students on Safe Spaces protection at host workplaces, during travel, and online.",
+      "image": "",
+      "file": "/downloadable files/CvSU_OJT_Safe_Spaces_Orientation_Poster_A3.pdf"
+    },
+    {
+      "id": "pap-2",
+      "title": "18-Day Campaign to End VAW (Orange Wave)",
+      "category": "Advocacy",
+      "year": "2025",
+      "description": "Campus-wide advocacy activities to raise awareness and end violence against women and girls.",
+      "image": "/orange wave 2025.png",
+      "file": ""
+    },
+    {
+      "id": "pap-3",
+      "title": "IEC Materials Distribution",
+      "category": "Information & Education",
+      "year": "2025",
+      "description": "Distribution of GAD, Safe Spaces, and anti-sexual harassment IEC materials.",
+      "image": "/2025 PHOTOS/Feb.6,2025 - IEC DISTRIBUTION.jpg",
+      "file": ""
+    }
+  ],
+  "knowledge": {
+    "laws": [
+      {
+        "id": "law-1",
+        "title": "RA 7877 & RA 11313",
+        "description": "Anti-Sexual Harassment Act and Safe Spaces Act at a glance.",
+        "image": "/RA 7877 and ra 11313.png",
+        "file": ""
+      },
+      {
+        "id": "law-2",
+        "title": "CvSU IRR on RA 7877 and RA 11313",
+        "description": "Implementing Rules and Regulations on the Anti-Sexual Harassment and Safe Spaces Acts.",
+        "image": "",
+        "file": "/downloadable files/Final-CvSU-IRR-on-RA-7877-and-RA-11313.pdf"
+      }
+    ],
+    "policies": [
+      {
+        "id": "pol-1",
+        "title": "CvSU-CCAT CODI Mechanism",
+        "description": "Committee on Decorum and Investigation mechanism for handling gender-based sexual harassment cases.",
+        "image": "",
+        "file": "/downloadable files/CvSU_CCAT_CODI_Mechanism.pdf"
+      }
+    ],
+    "genderStats": [
+      {
+        "id": "stat-1",
+        "label": "Women in leadership",
+        "value": "Represented",
+        "note": "Women hold key leadership and decision-making positions across the campus."
+      }
+    ],
+    "modules": []
+  },
+  "gfps": {
+    "chartImage": "",
+    "chartFile": "",
+    "members": [
+      {
+        "id": "m-1",
+        "name": "GAD Focal Point System Chairperson",
+        "role": "Chairperson",
+        "unit": "Office of the Campus Administrator",
+        "email": ""
+      },
+      {
+        "id": "m-2",
+        "name": "GAD Coordinator",
+        "role": "GAD Coordinator",
+        "unit": "GAD Office",
+        "email": "safespaces.gadrc@cvsu.edu.ph"
+      },
+      {
+        "id": "m-3",
+        "name": "Student Council GAD Representative",
+        "role": "Member",
+        "unit": "Supreme Student Council",
+        "email": ""
+      }
+    ]
+  },
+  "awards": [],
+  "partnerships": [],
+  "policies": {
+    "circulars": [
+      {
+        "id": "circ-1",
+        "title": "PCW MC 2025-05: Guidelines on the Establishment of GAD Corner",
+        "date": "2025-06-23",
+        "description": "PCW Memorandum Circular providing the minimum requirements for physical and digital GAD Corners.",
+        "file": ""
+      }
+    ],
+    "resolutions": [
+      {
+        "id": "res-1",
+        "title": "ADCOM Resolution No. 14, s. 2023",
+        "date": "2023-01-01",
+        "description": "CvSU Anti-Gender-Based Sexual Harassment IRR.",
+        "file": "/downloadable files/Final-CvSU-IRR-on-RA-7877-and-RA-11313.pdf"
+      }
+    ],
+    "memoranda": [],
+    "officeOrders": []
+  },
+  "strategicPlan": {
+    "title": "2020-2025 GAD Strategic Plan",
+    "description": "Five-year strategic plan guiding the campus GAD mainstreaming efforts.",
+    "image": "/GAD Strategic Plan 202-2025.png",
+    "file": "/downloadable files/2020-2025 GAD Strategic Plan (2).pdf"
+  },
+  "feedback": {
+    "description": "Help us improve our GAD programs and services. Share your feedback, suggestions, or concerns.",
+    "formUrl": "",
+    "email": "safespaces.gadrc@cvsu.edu.ph"
+  },
+  "about": {
+    "vision": "A gender-responsive university where every member of the community learns, works, and grows in a safe, inclusive, and equal environment.",
+    "mission": "To mainstream gender and development in instruction, research, extension, and administration, and to protect the rights, dignity, and welfare of all genders.",
+    "committee": "The GAD Focal Point System (GFPS) manages and updates the physical and digital GAD Corner, ensuring content remains current, relevant, and compliant with PCW guidelines."
+  },
+  "services": {
+    "intro": "The CvSU-CCAT GAD office offers the following services to students, personnel, and the community:",
+    "items": [
+      {
+        "id": "svc-1",
+        "title": "Capacity Building",
+        "note": "",
+        "trainingOn": [
+          "Gender Sensitivity",
+          "GAD Planning and Budgeting",
+          "Gender Analysis and GA Tools",
+          "Harmonized GAD Guidelines",
+          "Gender Mainstreaming Evaluation Framework",
+          "Gender Mainstreaming",
+          "Integration of GAD in Instruction",
+          "Integration of GAD in Research",
+          "Integration of GAD in Extension",
+          "Responsible Parenthood and Family Planning",
+          "Others"
+        ],
+        "orientationOn": [
+          "Gender and Development",
+          "Anti-Sexual Harassment Act of 1995 (RA 7877)",
+          "Anti-Violence Against Women and their Children Act of 2004 (RA 9262)",
+          "Anti-Rape Law of 1997 (RA 8353)",
+          "Anti-Trafficking in Persons Act of 2003 (RA 9208)",
+          "Anti-Bullying Act of 2013 (RA 10627)",
+          "Sexual Orientation, Gender Identity and Expression",
+          "Magna Carta of Women",
+          "Others"
+        ]
+      },
+      {
+        "id": "svc-2",
+        "title": "Livelihood and Entrepreneurship",
+        "note": "",
+        "trainingOn": [],
+        "orientationOn": []
+      },
+      {
+        "id": "svc-3",
+        "title": "Counselling",
+        "note": "",
+        "trainingOn": [],
+        "orientationOn": []
+      }
+    ]
+  },
+  "trackingMatrix": [
+    {
+      "id": "t-1",
+      "date": "2025-11-25",
+      "description": "Posted 18-Day Campaign to End VAW announcement and Orange Wave materials.",
+      "person": "GAD Coordinator"
+    },
+    {
+      "id": "t-2",
+      "date": "2025-02-10",
+      "description": "Uploaded IEC Distribution news and photos.",
+      "person": "GAD Staff"
+    }
+  ]
+}

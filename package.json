@@ -1,0 +1,20 @@
+{
+  "name": "cvsu-ccat-gad-corner",
+  "version": "1.0.0",
+  "description": "Dynamic GAD Corner website and CMS for CvSU-CCAT (PCW MC 2025-05 compliant)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^4.22.2",
+    "multer": "^2.2.0"
+  }
+}

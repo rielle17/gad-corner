@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>GAD Corner CMS | Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="admin.css?v=2" />
+    <script src="admin.js?v=2" defer></script>
+  </head>
+  <body>
+    <!-- Login -->
+    <div id="login-view" class="login-view">
+      <form id="login-form" class="login-card">
+        <div class="login-brand">
+          <span class="brand-mark">GAD</span>
+          <div>
+            <strong>GAD Corner CMS</strong>
+            <small>Cavite State University &ndash; CCAT Campus</small>
+          </div>
+        </div>
+        <h1>Staff Login</h1>
+        <p class="login-hint">Enter the GAD Corner admin password to manage content.</p>
+        <p class="login-default" id="login-default">Default password: <code>gadadmin2025</code> &mdash; please change it after logging in.</p>
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required />
+        <button type="submit" class="btn btn-primary btn-block">Log in</button>
+        <p id="login-error" class="login-error" role="alert"></p>
+        <a href="/" class="login-back">&larr; Back to the GAD Corner</a>
+      </form>
+    </div>
+
+    <!-- CMS -->
+    <div id="cms-view" class="cms-view" hidden>
+      <header class="cms-topbar">
+        <div class="cms-topbar-left">
+          <button type="button" class="menu-btn" id="menu-btn" aria-label="Toggle menu">
+            <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+          </button>
+          <span class="brand-mark sm">GAD</span>
+          <span>
+            <strong>GAD Corner CMS</strong>
+            <span class="tb-sub">Cavite State University &ndash; CCAT Campus</span>
+          </span>
+        </div>
+        <div class="cms-topbar-right">
+          <span id="save-status" class="save-status"></span>
+          <a href="/" target="_blank" rel="noopener" class="btn btn-ghost hide-sm">View site &#8599;</a>
+          <button type="button" id="save-btn" class="btn btn-primary">
+            <span class="btn-text-lg">Save changes</span><span class="btn-text-sm" hidden>Save</span>
+          </button>
+          <button type="button" id="logout-btn" class="btn btn-ghost">Log out</button>
+        </div>
+      </header>
+
+      <div class="cms-body">
+        <aside class="cms-sidebar" id="cms-nav" aria-label="Sections"></aside>
+        <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+        <main class="cms-content" id="cms-main-scroll">
+          <div class="cms-content-inner" id="cms-main"></div>
+        </main>
+      </div>
+    </div>
+
+    <!-- hidden upload input -->
+    <input type="file" id="upload-input" hidden />
+    <div id="toast" class="toast" hidden></div>
+  </body>
+</html>
