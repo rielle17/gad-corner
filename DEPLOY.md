@@ -50,13 +50,22 @@ blueprint included.
 
 ### Important: data persistence
 
-- The **free** plan has an **ephemeral filesystem** — content edited in the CMS
-  and any uploaded files are reset whenever the service restarts or redeploys.
-  This is fine for a demo/preview.
-- For a **persistent live site**, upgrade to a paid instance and enable a disk:
-  uncomment the `disk` block and the `DATA_DIR` / `UPLOAD_DIR` env vars in
-  `render.yaml`, then redeploy. The server auto-seeds `content.json` onto the
-  disk on first boot.
+By default the server stores content and uploads on the local filesystem. On
+Render's **free** plan that filesystem is **ephemeral**, so CMS edits and
+uploaded files reset on every restart/redeploy.
+
+To keep data permanently on the free plan (no credit card required), point the
+server at free cloud services using environment variables (see below):
+
+- **MongoDB Atlas** (free M0 cluster) — stores CMS content + admin password.
+- **Cloudinary** (free tier) — stores uploaded files (PDFs, images).
+
+When `MONGODB_URI` is set, content/admin live in MongoDB. When Cloudinary vars
+are set, uploads go to Cloudinary. If neither is set, the server falls back to
+local files (handy for local development).
+
+Alternatively, upgrade to a paid Render instance and enable a disk: uncomment
+the `disk` block and the `DATA_DIR` / `UPLOAD_DIR` env vars in `render.yaml`.
 
 ---
 
@@ -75,11 +84,32 @@ blueprint included.
 
 ## Environment variables
 
-| Variable         | Purpose                                            | Default        |
-| ---------------- | -------------------------------------------------- | -------------- |
-| `PORT`           | Port the server listens on                         | `3000`         |
-| `ADMIN_PASSWORD` | Initial CMS admin password (set on first boot)     | `gadadmin2025` |
-| `DATA_DIR`       | Folder for `content.json` + `admin.json`           | `./data`       |
-| `UPLOAD_DIR`     | Folder for CMS file uploads                         | `./uploads`    |
+| Variable                  | Purpose                                             | Default        |
+| ------------------------- | --------------------------------------------------- | -------------- |
+| `PORT`                    | Port the server listens on                          | `3000`         |
+| `ADMIN_PASSWORD`          | Initial CMS admin password (set on first boot)      | `gadadmin2025` |
+| `MONGODB_URI`             | MongoDB Atlas connection string (persistent content)| _(unset)_      |
+| `MONGODB_DB`              | MongoDB database name                               | `gadcorner`    |
+| `CLOUDINARY_CLOUD_NAME`   | Cloudinary cloud name (persistent uploads)          | _(unset)_      |
+| `CLOUDINARY_API_KEY`      | Cloudinary API key                                  | _(unset)_      |
+| `CLOUDINARY_API_SECRET`   | Cloudinary API secret                               | _(unset)_      |
+| `DATA_DIR`                | Local folder for `content.json` + `admin.json`      | `./data`       |
+| `UPLOAD_DIR`              | Local folder for CMS file uploads                   | `./uploads`    |
 
 > After the first login, change the password from the CMS **Account** section.
+
+## Free persistent setup (MongoDB Atlas + Cloudinary)
+
+1. **MongoDB Atlas** — create a free account at <https://www.mongodb.com/atlas>,
+   create a free **M0** cluster, add a database user, allow network access from
+   anywhere (`0.0.0.0/0`), then copy the connection string
+   (`mongodb+srv://user:pass@cluster.xxxx.mongodb.net/`). Set it as `MONGODB_URI`
+   on Render.
+2. **Cloudinary** — create a free account at <https://cloudinary.com>. From the
+   dashboard copy the **Cloud name**, **API Key**, and **API Secret**, and set
+   them as `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`.
+3. Redeploy on Render. Content and uploads now persist across restarts.
+
+> Cloudinary's free tier limits a single upload to ~10 MB. For larger files,
+> host them elsewhere (e.g. Google Drive) and paste the link into the CMS file
+> field directly.

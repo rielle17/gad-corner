@@ -7,8 +7,8 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
-// DATA_DIR / UPLOAD_DIR can point to a persistent disk in production
-// (e.g. DATA_DIR=/var/data). They default to the project folder locally.
+
+// Local (fallback) storage paths — used when no MongoDB/Cloudinary is configured.
 const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, "data");
 const UPLOAD_DIR = process.env.UPLOAD_DIR ? path.resolve(process.env.UPLOAD_DIR) : path.join(ROOT, "uploads");
 const CONTENT_FILE = path.join(DATA_DIR, "content.json");
@@ -17,25 +17,102 @@ const SEED_CONTENT = path.join(ROOT, "data", "content.json");
 
 const DEFAULT_PASSWORD = process.env.ADMIN_PASSWORD || "gadadmin2025";
 
-for (const dir of [DATA_DIR, UPLOAD_DIR]) {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
+// --- Persistence backends (all optional, auto-detected from env vars) ---
+// MongoDB keeps CMS content + admin password across restarts/redeploys.
+const MONGODB_URI = process.env.MONGODB_URI || "";
+const MONGODB_DB = process.env.MONGODB_DB || "gadcorner";
+const USE_MONGO = Boolean(MONGODB_URI);
 
-// On a fresh persistent disk the content file won't exist yet, so seed it
-// from the copy bundled in the repo.
-if (!fs.existsSync(CONTENT_FILE)) {
-  if (fs.existsSync(SEED_CONTENT) && SEED_CONTENT !== CONTENT_FILE) {
-    fs.copyFileSync(SEED_CONTENT, CONTENT_FILE);
-  } else if (!fs.existsSync(SEED_CONTENT)) {
-    fs.writeFileSync(CONTENT_FILE, JSON.stringify({ site: {} }, null, 2));
+// Cloudinary keeps uploaded files (PDFs, images) across restarts/redeploys.
+const USE_CLOUDINARY = Boolean(
+  process.env.CLOUDINARY_URL ||
+    (process.env.CLOUDINARY_CLOUD_NAME &&
+      process.env.CLOUDINARY_API_KEY &&
+      process.env.CLOUDINARY_API_SECRET)
+);
+
+// Only prepare local folders/seed when we actually fall back to the filesystem.
+if (!USE_MONGO) {
+  for (const dir of [DATA_DIR]) {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   }
+  if (!fs.existsSync(CONTENT_FILE)) {
+    if (fs.existsSync(SEED_CONTENT) && SEED_CONTENT !== CONTENT_FILE) {
+      fs.copyFileSync(SEED_CONTENT, CONTENT_FILE);
+    } else if (!fs.existsSync(SEED_CONTENT)) {
+      fs.writeFileSync(CONTENT_FILE, JSON.stringify({ site: {} }, null, 2));
+    }
+  }
+}
+if (!USE_CLOUDINARY && !fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
 function hashPassword(password, salt) {
   return crypto.scryptSync(password, salt, 64).toString("hex");
 }
 
-function loadAdmin() {
+function seedContent() {
+  if (fs.existsSync(SEED_CONTENT)) {
+    try {
+      return JSON.parse(fs.readFileSync(SEED_CONTENT, "utf-8"));
+    } catch {
+      /* fall through */
+    }
+  }
+  return { site: {} };
+}
+
+// --- MongoDB connection (lazy, cached) ---
+let mongoCollPromise = null;
+function getStateColl() {
+  if (!mongoCollPromise) {
+    const { MongoClient } = require("mongodb");
+    const client = new MongoClient(MONGODB_URI);
+    mongoCollPromise = client
+      .connect()
+      .then((c) => c.db(MONGODB_DB).collection("state"));
+  }
+  return mongoCollPromise;
+}
+
+// --- Content storage ---
+async function readContent() {
+  if (USE_MONGO) {
+    const coll = await getStateColl();
+    const doc = await coll.findOne({ _id: "content" });
+    if (!doc) {
+      const seed = seedContent();
+      await coll.updateOne({ _id: "content" }, { $set: { data: seed } }, { upsert: true });
+      return seed;
+    }
+    return doc.data;
+  }
+  return JSON.parse(fs.readFileSync(CONTENT_FILE, "utf-8"));
+}
+
+async function writeContent(content) {
+  if (USE_MONGO) {
+    const coll = await getStateColl();
+    await coll.updateOne({ _id: "content" }, { $set: { data: content } }, { upsert: true });
+    return;
+  }
+  fs.writeFileSync(CONTENT_FILE, JSON.stringify(content, null, 2));
+}
+
+// --- Admin (password) storage ---
+async function loadAdmin() {
+  if (USE_MONGO) {
+    const coll = await getStateColl();
+    const doc = await coll.findOne({ _id: "admin" });
+    if (!doc) {
+      const salt = crypto.randomBytes(16).toString("hex");
+      const admin = { salt, hash: hashPassword(DEFAULT_PASSWORD, salt) };
+      await coll.updateOne({ _id: "admin" }, { $set: admin }, { upsert: true });
+      return admin;
+    }
+    return { salt: doc.salt, hash: doc.hash };
+  }
   if (!fs.existsSync(ADMIN_FILE)) {
     const salt = crypto.randomBytes(16).toString("hex");
     const admin = { salt, hash: hashPassword(DEFAULT_PASSWORD, salt) };
@@ -45,16 +122,50 @@ function loadAdmin() {
   return JSON.parse(fs.readFileSync(ADMIN_FILE, "utf-8"));
 }
 
-function saveAdmin(admin) {
+async function saveAdmin(admin) {
+  if (USE_MONGO) {
+    const coll = await getStateColl();
+    await coll.updateOne(
+      { _id: "admin" },
+      { $set: { salt: admin.salt, hash: admin.hash } },
+      { upsert: true }
+    );
+    return;
+  }
   fs.writeFileSync(ADMIN_FILE, JSON.stringify(admin, null, 2));
 }
 
-function readContent() {
-  return JSON.parse(fs.readFileSync(CONTENT_FILE, "utf-8"));
+// --- Cloudinary setup ---
+let cloudinary = null;
+if (USE_CLOUDINARY) {
+  cloudinary = require("cloudinary").v2;
+  if (!process.env.CLOUDINARY_URL) {
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+      secure: true,
+    });
+  }
 }
 
-function writeContent(content) {
-  fs.writeFileSync(CONTENT_FILE, JSON.stringify(content, null, 2));
+const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"]);
+
+function uploadToCloudinary(file) {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const resourceType = IMAGE_EXT.has(ext) ? "image" : "raw";
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: "gad-corner",
+        resource_type: resourceType,
+        use_filename: true,
+        unique_filename: true,
+      },
+      (err, result) => (err ? reject(err) : resolve(result))
+    );
+    stream.end(file.buffer);
+  });
 }
 
 // --- Simple in-memory session tokens ---
@@ -86,23 +197,27 @@ function requireAuth(req, res, next) {
   next();
 }
 
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "10mb" }));
 
 // --- Auth endpoints ---
-app.post("/api/login", (req, res) => {
+app.post("/api/login", async (req, res) => {
   const { password } = req.body || {};
   if (typeof password !== "string") {
     return res.status(400).json({ error: "Password is required." });
   }
-  const admin = loadAdmin();
-  const attempt = hashPassword(password, admin.salt);
-  const ok =
-    attempt.length === admin.hash.length &&
-    crypto.timingSafeEqual(Buffer.from(attempt), Buffer.from(admin.hash));
-  if (!ok) {
-    return res.status(401).json({ error: "Incorrect password." });
+  try {
+    const admin = await loadAdmin();
+    const attempt = hashPassword(password, admin.salt);
+    const ok =
+      attempt.length === admin.hash.length &&
+      crypto.timingSafeEqual(Buffer.from(attempt), Buffer.from(admin.hash));
+    if (!ok) {
+      return res.status(401).json({ error: "Incorrect password." });
+    }
+    res.json({ token: issueToken() });
+  } catch (err) {
+    res.status(500).json({ error: "Login failed. Please try again." });
   }
-  res.json({ token: issueToken() });
 });
 
 app.post("/api/logout", requireAuth, (req, res) => {
@@ -111,40 +226,44 @@ app.post("/api/logout", requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-app.post("/api/change-password", requireAuth, (req, res) => {
+app.post("/api/change-password", requireAuth, async (req, res) => {
   const { currentPassword, newPassword } = req.body || {};
   if (typeof newPassword !== "string" || newPassword.length < 6) {
     return res.status(400).json({ error: "New password must be at least 6 characters." });
   }
-  const admin = loadAdmin();
-  const attempt = hashPassword(currentPassword || "", admin.salt);
-  const ok =
-    attempt.length === admin.hash.length &&
-    crypto.timingSafeEqual(Buffer.from(attempt), Buffer.from(admin.hash));
-  if (!ok) {
-    return res.status(401).json({ error: "Current password is incorrect." });
+  try {
+    const admin = await loadAdmin();
+    const attempt = hashPassword(currentPassword || "", admin.salt);
+    const ok =
+      attempt.length === admin.hash.length &&
+      crypto.timingSafeEqual(Buffer.from(attempt), Buffer.from(admin.hash));
+    if (!ok) {
+      return res.status(401).json({ error: "Current password is incorrect." });
+    }
+    const salt = crypto.randomBytes(16).toString("hex");
+    await saveAdmin({ salt, hash: hashPassword(newPassword, salt) });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Unable to change password." });
   }
-  const salt = crypto.randomBytes(16).toString("hex");
-  saveAdmin({ salt, hash: hashPassword(newPassword, salt) });
-  res.json({ ok: true });
 });
 
 // --- Content endpoints ---
-app.get("/api/content", (req, res) => {
+app.get("/api/content", async (req, res) => {
   try {
-    res.json(readContent());
+    res.json(await readContent());
   } catch (err) {
     res.status(500).json({ error: "Unable to read content." });
   }
 });
 
-app.put("/api/content", requireAuth, (req, res) => {
+app.put("/api/content", requireAuth, async (req, res) => {
   const content = req.body;
   if (!content || typeof content !== "object" || Array.isArray(content)) {
     return res.status(400).json({ error: "Invalid content payload." });
   }
   try {
-    writeContent(content);
+    await writeContent(content);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: "Unable to save content." });
@@ -157,23 +276,24 @@ const ALLOWED_EXT = new Set([
   ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
 ]);
 
-const storage = multer.diskStorage({
+const diskStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const base = path
-      .basename(file.originalname, ext)
-      .replace(/[^a-z0-9-_]+/gi, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 60) || "file";
+    const base =
+      path
+        .basename(file.originalname, ext)
+        .replace(/[^a-z0-9-_]+/gi, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60) || "file";
     const stamp = Date.now().toString(36);
     cb(null, `${base}-${stamp}${ext}`);
   },
 });
 
 const upload = multer({
-  storage,
-  limits: { fileSize: 60 * 1024 * 1024 },
+  storage: USE_CLOUDINARY ? multer.memoryStorage() : diskStorage,
+  limits: { fileSize: (USE_CLOUDINARY ? 10 : 60) * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (!ALLOWED_EXT.has(ext)) {
@@ -184,9 +304,22 @@ const upload = multer({
 });
 
 app.post("/api/upload", requireAuth, (req, res) => {
-  upload.single("file")(req, res, (err) => {
+  upload.single("file")(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: "No file uploaded." });
+    if (USE_CLOUDINARY) {
+      try {
+        const result = await uploadToCloudinary(req.file);
+        return res.json({
+          ok: true,
+          path: result.secure_url,
+          name: req.file.originalname,
+          size: req.file.size,
+        });
+      } catch (e) {
+        return res.status(500).json({ error: "Cloud upload failed. Please try again." });
+      }
+    }
     res.json({
       ok: true,
       path: `/uploads/${req.file.filename}`,
@@ -196,7 +329,11 @@ app.post("/api/upload", requireAuth, (req, res) => {
   });
 });
 
-app.get("/api/uploads", requireAuth, (req, res) => {
+app.get("/api/uploads", requireAuth, async (req, res) => {
+  if (USE_CLOUDINARY) {
+    // Files live in Cloudinary; the CMS stores their URLs directly in content.
+    return res.json([]);
+  }
   const files = fs
     .readdirSync(UPLOAD_DIR)
     .filter((f) => !f.startsWith("."))
@@ -225,12 +362,21 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve uploaded files from UPLOAD_DIR (may live on a persistent disk).
+// Serve locally uploaded files (only relevant when not using Cloudinary).
 app.use("/uploads", express.static(UPLOAD_DIR));
 app.use(express.static(ROOT, { index: "index.html", extensions: ["html"] }));
 
-app.listen(PORT, () => {
-  loadAdmin();
+app.listen(PORT, async () => {
+  try {
+    // Warm up connections and ensure the admin + content records exist.
+    await loadAdmin();
+    await readContent();
+  } catch (err) {
+    console.error("Startup initialization error:", err.message);
+  }
+  const store = USE_MONGO ? "MongoDB" : "local files";
+  const files = USE_CLOUDINARY ? "Cloudinary" : "local uploads";
   console.log(`GAD Corner running at http://localhost:${PORT}`);
   console.log(`Admin CMS at        http://localhost:${PORT}/admin`);
+  console.log(`Content store: ${store} | File store: ${files}`);
 });
