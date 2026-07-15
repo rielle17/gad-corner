@@ -267,6 +267,29 @@
     "formUrl": "",
     "email": "safespaces.gadrc@cvsu.edu.ph"
   },
+  "chatbot": [
+    {
+      "id": "kb-1",
+      "topic": "VAW Desk / where to get help",
+      "keywords": "vaw desk help victim abuse violence hotline emergency saan hihingi ng tulong",
+      "answer": "If you or someone you know is experiencing violence or abuse, you may approach the campus GAD Office, the Guidance Office, or the nearest VAW Desk in your barangay hall. For emergencies, call 911. You may also email the GAD office (see the Contact section).",
+      "link": "#contact"
+    },
+    {
+      "id": "kb-2",
+      "topic": "GAD Plan and Budget",
+      "keywords": "gad plan budget gpb annual 5% five percent allocation",
+      "answer": "Government agencies including CvSU allocate at least 5% of their total budget to GAD programs through the annual GAD Plan and Budget (GPB). Copies of the campus GPB are posted in the Plans & Budget section.",
+      "link": "#plans"
+    },
+    {
+      "id": "kb-3",
+      "topic": "CODI committee",
+      "keywords": "codi committee decorum investigation member complaint process",
+      "answer": "The Committee on Decorum and Investigation (CODI) handles complaints of sexual harassment within the University following RA 7877 and RA 11313. The CvSU-CCAT CODI mechanism document is available in the Policies section.",
+      "link": "#policies"
+    }
+  ],
   "about": {
     "vision": "A gender-responsive university where every member of the community learns, works, and grows in a safe, inclusive, and equal environment.",
     "mission": "To mainstream gender and development in instruction, research, extension, and administration, and to protect the rights, dignity, and welfare of all genders.",

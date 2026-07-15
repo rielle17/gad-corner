@@ -1,5 +1,6 @@
 node_modules/
 data/admin.json
+data/analytics.json
 uploads/*
 !uploads/.gitkeep
 .tmp_annex/

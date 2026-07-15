@@ -140,6 +140,15 @@ const SCHEMA = [
     key: "trackingMatrix", label: "Tracking Matrix (Annex A)", desc: "Log of updates made to the GAD Corner.",
     node: arr([f("date", "Date", "date"), f("description", "Update / material displayed", "textarea"), f("person", "Responsible person")], "Entry"),
   },
+  {
+    key: "chatbot", label: "Chatbot Knowledge Base", desc: "Questions and answers used by the GAD Assistant chatbot on the website.",
+    node: arr([
+      f("topic", "Topic / short title"),
+      f("keywords", "Keywords (words that trigger this answer, separated by spaces)", "textarea"),
+      f("answer", "Answer", "textarea"),
+      f("link", "Section link (optional, e.g. #services or #downloads)"),
+    ], "Q&A Entry"),
+  },
 ];
 
 /* ---------- DOM helper ---------- */
@@ -182,6 +191,9 @@ const ICONS = {
   feedback: '<svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
   trackingMatrix: '<svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
   account: '<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  chatbot: '<svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/><path d="M9 10h.01M12 10h.01M15 10h.01"/></svg>',
+  analytics: '<svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>',
+  kms: '<svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
 };
 function icon(name) {
   return el("span", { class: "nav-ico", html: ICONS[name] || ICONS.about });
@@ -189,16 +201,20 @@ function icon(name) {
 
 /* sidebar grouping */
 const NAV_GROUPS = [
+  { label: "Reports & Insights", keys: ["analytics", "kms"] },
   { label: "General", keys: ["site", "about", "services", "gfps"] },
   { label: "Homepage & Content", keys: ["slides", "news", "agenda", "paps"] },
   { label: "Plans & Reports", keys: ["gpb", "accomplishments", "estadoNiJuana", "strategicPlan"] },
   { label: "Knowledge & Policies", keys: ["knowledge", "policies"] },
-  { label: "Engagement", keys: ["awards", "partnerships", "extraDownloads", "feedback", "trackingMatrix"] },
+  { label: "Engagement", keys: ["awards", "partnerships", "extraDownloads", "feedback", "trackingMatrix", "chatbot"] },
   { label: "Settings", keys: ["account"] },
 ];
 const ACCOUNT_META = { key: "account", label: "Account & Password", desc: "Change the CMS admin password." };
+const ANALYTICS_META = { key: "analytics", label: "Analytics & SDD Reports", desc: "Visitor statistics with sex-disaggregated data (SDD) for GAD reporting." };
+const KMS_META = { key: "kms", label: "KMS Deliverables Tracker", desc: "Status of GAD Corner deliverables required under PCW MC 2025-05." };
+const CUSTOM_META = { account: ACCOUNT_META, analytics: ANALYTICS_META, kms: KMS_META };
 function schemaByKey(key) {
-  return SCHEMA.find((s) => s.key === key) || (key === "account" ? ACCOUNT_META : null);
+  return SCHEMA.find((s) => s.key === key) || CUSTOM_META[key] || null;
 }
 let activeSection = null;
 
@@ -633,6 +649,10 @@ function showSection(key) {
   let bodyContent;
   if (key === "account") {
     bodyContent = renderAccountSection();
+  } else if (key === "analytics") {
+    bodyContent = renderAnalyticsSection();
+  } else if (key === "kms") {
+    bodyContent = renderKmsSection();
   } else {
     const sec = SCHEMA.find((s) => s.key === key);
     if (sec.node.kind === "array") {
@@ -679,6 +699,238 @@ function renderAccountSection() {
     ]),
     el("div", { style: "margin-top:18px;" }, [btn]),
   ]);
+}
+
+/* ---------- analytics dashboard ---------- */
+function csvEscape(v) {
+  const s = String(v == null ? "" : v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function downloadCsv(filename, headers, rows) {
+  const lines = [headers.map(csvEscape).join(",")];
+  for (const r of rows) lines.push(r.map(csvEscape).join(","));
+  const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+function csvBtn(label, onclick) {
+  return el("button", { class: "btn btn-ghost btn-sm csv-btn", type: "button", onclick }, "\u2913 " + label);
+}
+
+function statCard(label, value, accent) {
+  return el("div", { class: "stat-card" + (accent ? " accent" : "") }, [
+    el("span", { class: "stat-value" }, String(value)),
+    el("span", { class: "stat-label" }, label),
+  ]);
+}
+
+/* horizontal bar chart from a tally object {label: count} */
+function barChart(tally) {
+  const entries = Object.entries(tally).filter(([, v]) => v > 0 || true);
+  const max = Math.max(1, ...entries.map(([, v]) => v));
+  const total = entries.reduce((s, [, v]) => s + v, 0);
+  return el("div", { class: "bar-chart" }, entries.map(([label, v]) =>
+    el("div", { class: "bar-row" }, [
+      el("span", { class: "bar-label" }, label),
+      el("div", { class: "bar-track" }, [
+        el("div", { class: "bar-fill", style: `width:${Math.round((v / max) * 100)}%` }),
+      ]),
+      el("span", { class: "bar-value" }, `${v}${total ? ` (${Math.round((v / total) * 100)}%)` : ""}`),
+    ])
+  ));
+}
+
+function analyticsTable(headers, rows) {
+  return el("div", { class: "table-wrap" }, [
+    el("table", { class: "data-table" }, [
+      el("thead", {}, el("tr", {}, headers.map((h) => el("th", {}, h)))),
+      el("tbody", {}, rows.length
+        ? rows.map((r) => el("tr", {}, r.map((c) => el("td", {}, String(c)))))
+        : [el("tr", {}, [el("td", { colspan: String(headers.length), class: "table-empty" }, "No data yet.")])]),
+    ]),
+  ]);
+}
+
+function dashCard(title, children, exportBtn) {
+  return el("div", { class: "form-card dash-card" }, [
+    el("div", { class: "dash-card-head" }, [
+      el("h3", {}, title),
+      exportBtn || null,
+    ]),
+    ...[].concat(children),
+  ]);
+}
+
+function renderAnalyticsSection() {
+  const wrap = el("div", {});
+  const loading = el("div", { class: "form-card" }, [el("p", { class: "empty-note" }, "Loading analytics\u2026")]);
+  wrap.appendChild(loading);
+
+  (async () => {
+    let data;
+    try {
+      const res = await api("/api/admin/analytics", { headers: authHeaders(), cache: "no-store" });
+      data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load analytics.");
+    } catch (e) {
+      loading.innerHTML = "";
+      loading.appendChild(el("p", { class: "empty-note" }, "Unable to load analytics: " + e.message));
+      return;
+    }
+
+    loading.remove();
+    const t = data.totals || {};
+
+    // Overview stat cards
+    wrap.appendChild(el("div", { class: "stat-grid" }, [
+      statCard("Page visits", t.visits || 0, true),
+      statCard("Unique visitors", t.uniqueVisitors || 0),
+      statCard("Registered users", t.registeredUsers || 0),
+      statCard("File downloads", t.downloads || 0),
+      statCard("Chatbot questions", t.chatQuestions || 0),
+    ]));
+
+    // Visits per day (last 30 days) as a column chart
+    const perDay = data.visitsPerDay || {};
+    const days = Object.keys(perDay);
+    const maxDay = Math.max(1, ...days.map((d) => perDay[d]));
+    wrap.appendChild(dashCard("Visits — last 30 days",
+      el("div", { class: "col-chart", role: "img", "aria-label": "Visits per day chart" }, days.map((d) =>
+        el("div", { class: "col-item", title: `${d}: ${perDay[d]} visit(s)` }, [
+          el("div", { class: "col-bar", style: `height:${Math.max(3, Math.round((perDay[d] / maxDay) * 100))}%` }),
+        ])
+      )),
+      csvBtn("CSV", () => downloadCsv("visits-per-day.csv", ["Date", "Visits"], days.map((d) => [d, perDay[d]])))
+    ));
+
+    // SDD breakdowns
+    const sddCsv = (name, tallyObj) =>
+      csvBtn("CSV", () => downloadCsv(name, ["Category", "Count"], Object.entries(tallyObj)));
+    wrap.appendChild(el("div", { class: "dash-2col" }, [
+      dashCard("Registered users by sex (SDD)", barChart(data.visitorsBySex || {}), sddCsv("users-by-sex.csv", data.visitorsBySex || {})),
+      dashCard("Downloads by sex (SDD)", barChart(data.downloadsBySex || {}), sddCsv("downloads-by-sex.csv", data.downloadsBySex || {})),
+      dashCard("Registered users by age group", barChart(data.visitorsByAge || {}), sddCsv("users-by-age.csv", data.visitorsByAge || {})),
+      dashCard("Registered users by affiliation", barChart(data.visitorsByAffiliation || {}), sddCsv("users-by-affiliation.csv", data.visitorsByAffiliation || {})),
+    ]));
+
+    // Downloads per file with SDD split
+    const sexCols = (data.meta && data.meta.sexValues) || ["Female", "Male", "Prefer not to say"];
+    const dlHeaders = ["File / Document", "Total", ...sexCols, "Not specified"];
+    const dlRows = (data.downloadRows || []).map((r) => [
+      r.title || r.file,
+      r.total,
+      ...sexCols.map((s) => (r.sex && r.sex[s]) || 0),
+      (r.sex && r.sex["Not specified"]) || 0,
+    ]);
+    wrap.appendChild(dashCard("Downloads per file (sex-disaggregated)",
+      analyticsTable(dlHeaders, dlRows),
+      csvBtn("CSV", () => downloadCsv("downloads-per-file-sdd.csv", dlHeaders, dlRows))
+    ));
+
+    // Chatbot most-asked questions
+    const qHeaders = ["Question", "Times asked", "Matched topic"];
+    const qRows = (data.topQuestions || []).map((q) => [q.query, q.count, q.matched || "(no match)"]);
+    wrap.appendChild(dashCard("Chatbot — most-asked questions",
+      analyticsTable(qHeaders, qRows),
+      csvBtn("CSV", () => downloadCsv("chatbot-questions.csv", qHeaders, qRows))
+    ));
+
+    // Registered users
+    const uHeaders = ["Name", "Email", "Sex", "Age group", "Affiliation", "Downloads", "Registered"];
+    const uRows = (data.users || []).map((u) => [
+      u.name || "\u2014",
+      u.email,
+      u.sex,
+      u.ageGroup,
+      u.affiliation,
+      u.downloads,
+      String(u.registeredAt).slice(0, 10),
+    ]);
+    wrap.appendChild(dashCard(`Registered users (${uRows.length})`,
+      analyticsTable(uHeaders, uRows),
+      csvBtn("CSV", () => downloadCsv("registered-users-sdd.csv", uHeaders, uRows))
+    ));
+
+    wrap.appendChild(el("p", { class: "dash-note" },
+      "Tip: use the CSV buttons to attach sex-disaggregated data (SDD) to your GAD accomplishment reports and PCW submissions."));
+  })();
+
+  return wrap;
+}
+
+/* ---------- KMS deliverables tracker ---------- */
+const KMS_DELIVERABLES = [
+  { key: "gpb", label: "GAD Plan & Budget (GPB)", basis: "PCW MC 2025-05, Annex B", section: "gpb", check: (d) => (d.gpb || []).length },
+  { key: "accomplishments", label: "GAD Accomplishment Reports", basis: "PCW MC 2025-05, Annex B", section: "accomplishments", check: (d) => (d.accomplishments || []).length },
+  { key: "agenda", label: "GAD Agenda / Strategic Priorities", basis: "PCW MC 2025-05, Annex B", section: "agenda", check: (d) => ((d.agenda || {}).points || []).length || ((d.agenda || {}).body ? 1 : 0) },
+  { key: "estadoNiJuana", label: "Estado ni Juana Report", basis: "PCW MC 2025-05, Annex B", section: "estadoNiJuana", check: (d) => ((d.estadoNiJuana || {}).file || (d.estadoNiJuana || {}).body) ? 1 : 0 },
+  { key: "strategicPlan", label: "GAD Strategic Plan", basis: "PCW MC 2025-05, Annex B", section: "strategicPlan", check: (d) => ((d.strategicPlan || {}).file ? 1 : 0) },
+  { key: "knowledge", label: "Knowledge Products (laws, IEC, modules, statistics)", basis: "PCW MC 2025-05, Annex B", section: "knowledge", check: (d) => { const k = d.knowledge || {}; return (k.laws || []).length + (k.policies || []).length + (k.genderStats || []).length + (k.modules || []).length; } },
+  { key: "policies", label: "Policies & Issuances (circulars, resolutions, memoranda)", basis: "PCW MC 2025-05, Annex B", section: "policies", check: (d) => { const p = d.policies || {}; return (p.circulars || []).length + (p.resolutions || []).length + (p.memoranda || []).length + (p.officeOrders || []).length; } },
+  { key: "news", label: "GAD News & Announcements", basis: "PCW MC 2025-05, Annex B", section: "news", check: (d) => (d.news || []).length },
+  { key: "paps", label: "GAD Programs, Activities & Projects (PAPs)", basis: "PCW MC 2025-05, Annex B", section: "paps", check: (d) => (d.paps || []).length },
+  { key: "gfps", label: "GFPS Directory / Organizational Chart", basis: "PCW MC 2025-05, Annex B", section: "gfps", check: (d) => ((d.gfps || {}).members || []).length || ((d.gfps || {}).chartImage ? 1 : 0) },
+  { key: "feedback", label: "Feedback Mechanism", basis: "PCW MC 2025-05, Annex B", section: "feedback", check: (d) => ((d.feedback || {}).formUrl || (d.feedback || {}).email) ? 1 : 0 },
+  { key: "trackingMatrix", label: "Tracking Matrix (Annex A)", basis: "PCW MC 2025-05, Annex A", section: "trackingMatrix", check: (d) => (d.trackingMatrix || []).length },
+  { key: "chatbot", label: "Chatbot Knowledge Base (KMS aid)", basis: "University KMS initiative", section: "chatbot", check: (d) => (d.chatbot || []).length },
+];
+
+function renderKmsSection() {
+  const wrap = el("div", {});
+
+  const rows = KMS_DELIVERABLES.map((del) => {
+    const count = del.check(draft) || 0;
+    const posted = count > 0;
+    return { del, count, posted };
+  });
+  const postedCount = rows.filter((r) => r.posted).length;
+
+  wrap.appendChild(el("div", { class: "stat-grid" }, [
+    statCard("Deliverables posted", `${postedCount} / ${rows.length}`, true),
+    statCard("Completion", `${Math.round((postedCount / rows.length) * 100)}%`),
+    statCard("Tracking matrix entries", (draft.trackingMatrix || []).length),
+  ]));
+
+  // Last tracking matrix update
+  const tm = (draft.trackingMatrix || []).slice().sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
+  if (tm) {
+    wrap.appendChild(el("p", { class: "dash-note" },
+      `Last GAD Corner update logged: ${tm.date || "(no date)"} — ${tm.description || ""}${tm.person ? " (" + tm.person + ")" : ""}`));
+  }
+
+  const table = el("div", { class: "table-wrap" }, [
+    el("table", { class: "data-table kms-table" }, [
+      el("thead", {}, el("tr", {}, ["Deliverable", "Basis", "Status", "Items", ""].map((h) => el("th", {}, h)))),
+      el("tbody", {}, rows.map(({ del, count, posted }) =>
+        el("tr", {}, [
+          el("td", {}, del.label),
+          el("td", { class: "kms-basis" }, del.basis),
+          el("td", {}, el("span", { class: "kms-status " + (posted ? "ok" : "missing") }, posted ? "Posted" : "Missing")),
+          el("td", {}, String(count)),
+          el("td", {}, el("button", {
+            class: "btn btn-ghost btn-sm", type: "button",
+            onclick: () => showSection(del.section),
+          }, "Manage")),
+        ])
+      )),
+    ]),
+  ]);
+
+  const csvExport = csvBtn("CSV", () => downloadCsv("kms-deliverables-status.csv",
+    ["Deliverable", "Basis", "Status", "Items"],
+    rows.map(({ del, count, posted }) => [del.label, del.basis, posted ? "Posted" : "Missing", count])));
+
+  wrap.appendChild(dashCard("GAD Corner deliverables status", table, csvExport));
+  wrap.appendChild(el("p", { class: "dash-note" },
+    "This matrix tracks the knowledge products and deliverables vital to the University GAD implementation. \"Missing\" items link straight to the CMS section where you can add them."));
+  return wrap;
 }
 
 /* ---------- sidebar (mobile) ---------- */

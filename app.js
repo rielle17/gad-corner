@@ -862,9 +862,427 @@ function renderFooter(data) {
     el("div", { class: "container footer-bottom" }, [
       el("p", {}, "Compliant with PCW Memorandum Circular No. 2025-05 (Guidelines on the Establishment of GAD Corner)."),
       el("p", {}, `\u00A9 ${new Date().getFullYear()} ${s.agencyName || "Cavite State University"}${s.campus ? " \u2013 " + s.campus : ""}. All rights reserved.`),
+      el("span", { class: "viewer-count", id: "viewer-count", title: "Site visitor statistics" }, [
+        el("span", { class: "viewer-count-icon", "aria-hidden": "true" }, "\uD83D\uDC41"),
+        el("span", { id: "viewer-count-text" }, "\u2026"),
+      ]),
       el("a", { href: "/admin", class: "admin-link" }, "GAD Staff Login"),
     ]),
   ]);
+}
+
+/* ================= VISITOR IDENTITY & ANALYTICS ================= */
+const VISITOR_KEY = "gad-visitor-id";
+const PROFILE_KEY = "gad-visitor-profile";
+
+function getVisitorId() {
+  let id = "";
+  try { id = localStorage.getItem(VISITOR_KEY) || ""; } catch {}
+  if (!id) {
+    id = (crypto.randomUUID && crypto.randomUUID()) ||
+      "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+      });
+    try { localStorage.setItem(VISITOR_KEY, id); } catch {}
+  }
+  return id;
+}
+
+function getProfile() {
+  try { return JSON.parse(localStorage.getItem(PROFILE_KEY) || "null"); } catch { return null; }
+}
+function saveProfileLocal(p) {
+  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch {}
+}
+
+async function trackVisit() {
+  try {
+    if (sessionStorage.getItem("gad-visit-logged")) return;
+    await fetch("/api/track/visit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visitorId: getVisitorId() }),
+    });
+    sessionStorage.setItem("gad-visit-logged", "1");
+  } catch {}
+}
+
+async function loadViewerCount() {
+  try {
+    const res = await fetch("/api/stats/public");
+    const s = await res.json();
+    const elText = document.getElementById("viewer-count-text");
+    if (elText) elText.textContent = `${(s.visitors || 0).toLocaleString()} visitors \u00B7 ${(s.visits || 0).toLocaleString()} views`;
+  } catch {}
+}
+
+/* ================= DOWNLOAD GATE (SDD registration) ================= */
+const SDD_SEX = ["Female", "Male", "Prefer not to say"];
+const SDD_AGE = ["Below 18", "18-24", "25-34", "35-44", "45-54", "55 and above"];
+const SDD_AFF = ["Student", "Faculty", "Staff", "Alumni", "Parent/Guardian", "Guest/Other"];
+
+function isGatedLink(a) {
+  if (!a || !a.href) return false;
+  if (a.hasAttribute("download")) return true;
+  const href = a.getAttribute("href") || "";
+  return href.startsWith("/uploads/") || /res\.cloudinary\.com/.test(href) ||
+    /\.(pdf|docx?|pptx?|xlsx?)(\?|$)/i.test(href);
+}
+
+function logDownload(a) {
+  const title =
+    a.querySelector(".dl-chip-text strong")?.textContent ||
+    a.querySelector(".download-meta strong")?.textContent ||
+    a.textContent.trim().slice(0, 120) ||
+    "";
+  fetch("/api/track/download", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      visitorId: getVisitorId(),
+      file: a.getAttribute("href") || "",
+      title,
+      category: a.dataset.category || "",
+    }),
+  }).catch(() => {});
+}
+
+function showDownloadSnackbar(email) {
+  let bar = document.getElementById("dl-snackbar");
+  if (!bar) {
+    bar = el("div", { class: "dl-snackbar", id: "dl-snackbar" });
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = "";
+  bar.appendChild(el("span", {}, ["Downloading as ", el("strong", {}, email), " "]));
+  bar.appendChild(el("button", { type: "button", class: "dl-snackbar-link", onclick: () => { bar.classList.remove("show"); openRegisterModal(); } }, "Not you?"));
+  bar.classList.add("show");
+  clearTimeout(bar._timer);
+  bar._timer = setTimeout(() => bar.classList.remove("show"), 5000);
+}
+
+let pendingDownload = null;
+
+function ensureRegisterModal() {
+  let modal = document.getElementById("register-modal");
+  if (modal) return modal;
+
+  const selectField = (id, label, options) =>
+    el("div", { class: "reg-field" }, [
+      el("label", { for: id }, label),
+      el("select", { id, required: "" }, [
+        el("option", { value: "", disabled: "", selected: "" }, "Select\u2026"),
+        ...options.map((o) => el("option", { value: o }, o)),
+      ]),
+    ]);
+
+  const form = el("form", { class: "reg-form", id: "register-form" }, [
+    el("div", { class: "reg-field" }, [
+      el("label", { for: "reg-name" }, "Full name (optional)"),
+      el("input", { id: "reg-name", type: "text", autocomplete: "name", placeholder: "Juana Dela Cruz" }),
+    ]),
+    el("div", { class: "reg-field" }, [
+      el("label", { for: "reg-email" }, "Email address *"),
+      el("input", { id: "reg-email", type: "email", required: "", autocomplete: "email", placeholder: "you@cvsu.edu.ph" }),
+    ]),
+    selectField("reg-sex", "Sex *", SDD_SEX),
+    selectField("reg-age", "Age group *", SDD_AGE),
+    selectField("reg-aff", "Affiliation *", SDD_AFF),
+    el("p", { class: "reg-error", id: "reg-error" }),
+    el("button", { class: "button button-primary reg-submit", type: "submit" }, "Continue to download"),
+    el("p", { class: "reg-privacy" },
+      "Your information is used only for the University's sex-disaggregated GAD reports, in line with PCW guidelines. It is never shared publicly."),
+  ]);
+
+  modal = el("div", { class: "reg-modal", id: "register-modal", role: "dialog", "aria-modal": "true", "aria-hidden": "true", "aria-labelledby": "reg-title" }, [
+    el("div", { class: "reg-modal-backdrop", "data-close": "1" }),
+    el("div", { class: "reg-modal-panel", role: "document" }, [
+      el("button", { class: "reg-modal-close", type: "button", "aria-label": "Close", "data-close": "1" }, "\u2715"),
+      el("div", { class: "reg-modal-head" }, [
+        el("span", { class: "reg-modal-badge" }, "One-time registration"),
+        el("h2", { id: "reg-title" }, "Register to download"),
+        el("p", {}, "The GAD office collects basic sex-disaggregated data (SDD) for its PCW reports. You only need to do this once on this device."),
+      ]),
+      form,
+    ]),
+  ]);
+  modal.addEventListener("click", (e) => {
+    if (e.target.dataset && e.target.dataset.close) closeRegisterModal();
+  });
+  form.addEventListener("submit", onRegisterSubmit);
+  document.body.appendChild(modal);
+  return modal;
+}
+
+function openRegisterModal() {
+  const modal = ensureRegisterModal();
+  const p = getProfile();
+  if (p) {
+    const set = (id, v) => { const n = document.getElementById(id); if (n) n.value = v || ""; };
+    set("reg-name", p.name);
+    set("reg-email", p.email);
+    set("reg-sex", p.sex);
+    set("reg-age", p.ageGroup);
+    set("reg-aff", p.affiliation);
+  }
+  document.getElementById("reg-error").textContent = "";
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  const email = document.getElementById("reg-email");
+  if (email) email.focus();
+}
+
+function closeRegisterModal() {
+  const modal = document.getElementById("register-modal");
+  if (!modal) return;
+  modal.classList.remove("open");
+  modal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
+  pendingDownload = null;
+}
+
+async function onRegisterSubmit(e) {
+  e.preventDefault();
+  const err = document.getElementById("reg-error");
+  const btn = e.target.querySelector(".reg-submit");
+  err.textContent = "";
+  const payload = {
+    visitorId: getVisitorId(),
+    name: document.getElementById("reg-name").value.trim(),
+    email: document.getElementById("reg-email").value.trim(),
+    sex: document.getElementById("reg-sex").value,
+    ageGroup: document.getElementById("reg-age").value,
+    affiliation: document.getElementById("reg-aff").value,
+  };
+  if (!payload.sex || !payload.ageGroup || !payload.affiliation) {
+    err.textContent = "Please complete all required fields.";
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "Saving\u2026";
+  try {
+    const res = await fetch("/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Registration failed.");
+    saveProfileLocal({ name: payload.name, email: payload.email, sex: payload.sex, ageGroup: payload.ageGroup, affiliation: payload.affiliation });
+    const dl = pendingDownload;
+    closeRegisterModal();
+    if (dl) {
+      logDownload(dl);
+      showDownloadSnackbar(payload.email);
+      // Re-trigger the original download now that the user is registered.
+      const a = document.createElement("a");
+      a.href = dl.getAttribute("href");
+      if (dl.hasAttribute("download")) a.setAttribute("download", "");
+      a.target = dl.getAttribute("target") || "_blank";
+      a.rel = "noopener";
+      a.dataset.skipGate = "1"; // already logged above; avoid double-logging
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+  } catch (e2) {
+    err.textContent = e2.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Continue to download";
+  }
+}
+
+/* Intercept clicks on any downloadable-file link (delegated). */
+function setupDownloadGate() {
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest("a");
+    if (!a || !isGatedLink(a) || a.dataset.skipGate) return;
+    const profile = getProfile();
+    if (!profile || !profile.email) {
+      e.preventDefault();
+      pendingDownload = a;
+      openRegisterModal();
+      return;
+    }
+    // Registered: let the browser follow the link; just log it.
+    logDownload(a);
+    showDownloadSnackbar(profile.email);
+  });
+}
+
+/* ================= GAD CHATBOT (rule-based, no external API) ================= */
+const CHAT_FALLBACK_KB = [
+  {
+    topic: "Safe Spaces Act (RA 11313)",
+    keywords: "safe spaces act ra 11313 bawal bastos catcalling harassment street online gender-based sexual harassment gbsh",
+    answer: "RA 11313 (Safe Spaces Act or \"Bawal Bastos\" Law) penalizes gender-based sexual harassment in streets, public spaces, online, workplaces, and schools. In CvSU-CCAT, incidents may be reported to the GAD Office or through the CODI mechanism.",
+    link: "#knowledge",
+  },
+  {
+    topic: "Anti-Sexual Harassment Act (RA 7877)",
+    keywords: "ra 7877 anti sexual harassment act work education training",
+    answer: "RA 7877 (Anti-Sexual Harassment Act of 1995) declares sexual harassment unlawful in employment, education, and training environments. The University enforces this through its Committee on Decorum and Investigation (CODI).",
+    link: "#knowledge",
+  },
+  {
+    topic: "Magna Carta of Women (RA 9710)",
+    keywords: "magna carta women ra 9710 rights empowerment discrimination",
+    answer: "RA 9710 (Magna Carta of Women) is a comprehensive women's human rights law that seeks to eliminate discrimination against women. It mandates agencies like CvSU to implement GAD programs and allocate a GAD budget.",
+    link: "#knowledge",
+  },
+  {
+    topic: "Reporting / CODI",
+    keywords: "report incident complaint codi harassment saan paano magsumbong file case victim help",
+    answer: "To report gender-based harassment or discrimination, contact the GAD Office or the Committee on Decorum and Investigation (CODI). You may also email the GAD office \u2014 see the Contact section. All reports are handled confidentially.",
+    link: "#contact",
+  },
+  {
+    topic: "GAD services",
+    keywords: "services seminar training workshop counselling counseling livelihood orientation offer",
+    answer: "The GAD Office offers capacity building (seminars, trainings, workshops), gender-responsive counselling referrals, livelihood programs, and orientations on GAD-related laws. See the Services section for details.",
+    link: "#services",
+  },
+  {
+    topic: "Downloads / resources",
+    keywords: "download file resources pdf forms plan budget report copy documents",
+    answer: "You can find GAD plans, accomplishment reports, policies, IEC materials, and other downloadable resources in the Downloads section. A quick one-time registration is asked before downloading (for the University's sex-disaggregated reports).",
+    link: "#downloads",
+  },
+  {
+    topic: "18-Day Campaign to End VAW",
+    keywords: "18 day campaign vaw violence against women orange november 25",
+    answer: "The 18-Day Campaign to End Violence Against Women (Nov 25 \u2013 Dec 12) is an annual nationwide advocacy. CvSU-CCAT joins through the Orange Wave campaign \u2014 see the News section for this year's activities.",
+    link: "#news",
+  },
+  {
+    topic: "What is GAD?",
+    keywords: "what gad ano ang gender and development meaning kahulugan focal point gfps",
+    answer: "Gender and Development (GAD) is a development approach that seeks equality between women and men. The University implements GAD through its GAD Focal Point System (GFPS), annual GAD Plan & Budget, and PCW-mandated programs.",
+    link: "#about",
+  },
+];
+
+let chatOpen = false;
+
+function chatKb() {
+  const custom = (content && content.chatbot) || [];
+  return [...custom, ...CHAT_FALLBACK_KB];
+}
+
+function scoreEntry(entry, tokens) {
+  const hay = ((entry.keywords || "") + " " + (entry.topic || "") + " " + (entry.question || "")).toLowerCase();
+  const hayWords = hay.split(/\s+/).filter((w) => w.length >= 4);
+  let score = 0;
+  for (const t of tokens) {
+    if (t.length < 3) continue;
+    if (hay.includes(t)) {
+      score += t.length >= 5 ? 2 : 1;
+    } else if (t.length >= 6 && hayWords.some((w) => t.includes(w))) {
+      // Handles Taglish affixes, e.g. "makakadownload" matches keyword "download".
+      score += 2;
+    }
+  }
+  return score;
+}
+
+function answerFor(text) {
+  const tokens = text.toLowerCase().replace(/[^a-z0-9\u00f1\s-]/gi, " ").split(/\s+/).filter(Boolean);
+  let best = null;
+  let bestScore = 0;
+  for (const entry of chatKb()) {
+    const s = scoreEntry(entry, tokens);
+    if (s > bestScore) { best = entry; bestScore = s; }
+  }
+  if (best && bestScore >= 2) return best;
+  return null;
+}
+
+function chatMsg(text, who, link) {
+  const wrap = el("div", { class: "chat-msg " + who }, [
+    el("div", { class: "chat-bubble" }, [
+      text,
+      link ? el("a", { class: "chat-link", href: link, onclick: () => toggleChat(false) }, "Open section \u2192") : null,
+    ]),
+  ]);
+  const log = document.getElementById("chat-log");
+  log.appendChild(wrap);
+  log.scrollTop = log.scrollHeight;
+}
+
+function botReply(userText) {
+  const match = answerFor(userText);
+  fetch("/api/track/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ visitorId: getVisitorId(), query: userText.slice(0, 300), matched: match ? match.topic : "" }),
+  }).catch(() => {});
+  setTimeout(() => {
+    if (match) {
+      chatMsg(match.answer, "bot", match.link || "");
+    } else {
+      const email = (content && content.site && content.site.email) || "";
+      chatMsg(
+        "Sorry, wala akong sagot diyan sa ngayon. You can browse the site sections, or contact the GAD Office directly" + (email ? " at " + email : "") + ". Try asking about: Safe Spaces Act, reporting harassment, GAD services, or downloads.",
+        "bot"
+      );
+    }
+  }, 350);
+}
+
+function sendChat() {
+  const input = document.getElementById("chat-input");
+  const text = (input.value || "").trim();
+  if (!text) return;
+  input.value = "";
+  chatMsg(text, "user");
+  botReply(text);
+}
+
+function toggleChat(open) {
+  const panel = document.getElementById("chat-panel");
+  const fab = document.getElementById("chat-fab");
+  chatOpen = open !== undefined ? open : !chatOpen;
+  panel.classList.toggle("open", chatOpen);
+  fab.setAttribute("aria-expanded", String(chatOpen));
+  if (chatOpen) {
+    const log = document.getElementById("chat-log");
+    if (!log.childElementCount) {
+      chatMsg("Hi! Ako ang GAD Assistant ng CvSU-CCAT. Magtanong tungkol sa GAD laws, services, reporting, o resources. \uD83D\uDC9C", "bot");
+    }
+    document.getElementById("chat-input").focus();
+  }
+}
+
+function setupChatbot() {
+  if (document.getElementById("chat-fab")) return;
+  const quick = ["What is GAD?", "Safe Spaces Act", "How to report harassment?", "GAD services", "Downloads"];
+  const panel = el("div", { class: "chat-panel", id: "chat-panel", role: "dialog", "aria-label": "GAD Assistant chatbot" }, [
+    el("div", { class: "chat-head" }, [
+      el("span", { class: "chat-avatar", "aria-hidden": "true" }, "\uD83D\uDCAC"),
+      el("div", {}, [
+        el("strong", {}, "GAD Assistant"),
+        el("small", {}, "CvSU-CCAT GAD Corner"),
+      ]),
+      el("button", { class: "chat-close", type: "button", "aria-label": "Close chat", onclick: () => toggleChat(false) }, "\u2715"),
+    ]),
+    el("div", { class: "chat-log", id: "chat-log" }),
+    el("div", { class: "chat-quick" }, quick.map((q) =>
+      el("button", { class: "chat-chip", type: "button", onclick: () => { chatMsg(q, "user"); botReply(q); } }, q)
+    )),
+    el("form", { class: "chat-form", onsubmit: (e) => { e.preventDefault(); sendChat(); } }, [
+      el("input", { id: "chat-input", type: "text", placeholder: "Type your question\u2026", "aria-label": "Chat message", autocomplete: "off" }),
+      el("button", { class: "chat-send", type: "submit", "aria-label": "Send" }, "\u27A4"),
+    ]),
+  ]);
+  const fab = el("button", { class: "chat-fab", id: "chat-fab", type: "button", "aria-label": "Open GAD Assistant chatbot", "aria-expanded": "false", onclick: () => toggleChat() }, [
+    el("span", { class: "chat-fab-icon", "aria-hidden": "true" }, "\uD83D\uDCAC"),
+    el("span", { class: "chat-fab-label" }, "GAD Assistant"),
+  ]);
+  document.body.appendChild(panel);
+  document.body.appendChild(fab);
 }
 
 /* ================= SEARCH ================= */
@@ -970,6 +1388,9 @@ function render(data) {
   applyA11yPrefs();
   resetCarouselTimer();
   setupScroll();
+  setupChatbot();
+  trackVisit();
+  loadViewerCount();
 
   document.addEventListener("click", (e) => {
     const nav = document.querySelector(".primary-nav");
@@ -982,6 +1403,8 @@ function render(data) {
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenu(); });
 }
+
+setupDownloadGate();
 
 async function init() {
   try {
